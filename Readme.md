@@ -61,21 +61,51 @@ Meaning there are roughly 100 000 times more possible boards than reachable boar
 
 ### Unreachable States Generation
 
-Apply perturbations to simulated games for each of the envisioned impossibilities.
+Apply perturbations to **reachable** positions (e.g. from simulated or real games) to produce synthetic unreachable states. Core perturbation ideas by category:
 
+#### 1. Pawn structure
+
+- **Pawn swap** — Swap two same-color pawns on different files (breaks file history).
+- **Double pawn** — Copy a pawn to an adjacent file so two same-color pawns share a file.
+- **Pawn teleport** — Move a pawn to another file or rank without a legal path (e.g. e2→e5 in one step).
+- **Wrong count / placement** — Add/remove pawns, or put a pawn on rank 1/8 (without promotion), or create impossible passed/blocked structures.
+
+#### 2. Turn number
+
+- **Turn truncation** — Take a position from move 40 and label it as move 10 (or 5); many arrangements are impossible that early.
+- **Turn inflation** — Label an early-looking position (e.g. many pawns, few pieces moved) as move 60.
+- **Minimum-move violation** — Set turn number below the minimum moves needed (e.g. for knights to leave the back rank, or for the given piece layout).
+
+#### 3. Piece mobility / placement
+
+- **Piece swap (same type)** — Swap two identical pieces (e.g. two knights) so at least one couldn’t have reached its square.
+- **Knight jump** — Move a knight to a non-knight square (same colour as origin).
+- **Bishop colour** — Put a bishop on the wrong colour complex.
+- **King in check (illegal last move)** — Add or move a piece so the side not to move has their king in check.
+- **Promotion contradiction** — Add an extra queen (or piece) that implies promotion, but remove/block pawns so that many promotions are impossible; or wrong piece counts (e.g. two queens, one promotion possible).
+- **Castling / en passant** — Set castling rights or en passant when the board doesn’t allow it (e.g. king/rook moved, or no pawn just moved two).
+
+#### 4. Structural / cross-cutting
+
+- **Side swap** — Mirror the board or swap colours and keep the same turn number.
+- **FEN corruption** — Small edits to a valid FEN (castling, en passant, a digit) to get parseable but unreachable positions.
+
+*Implementation priority: start with pawn swap, turn truncation/inflation, knight square and bishop colour — then add double-pawn, king-in-check, and promotion contradictions for stronger signal.*
+
+---
 
 ## Predicted Impossibility Types
 
 The system should detect the following types of unreachable board states:
 
-1. **Pawn Structure Violation** 
-   - unreachable pawn configurations given the move history
+1. **Pawn Structure Violation**
+   - Unreachable pawn configurations given the move history (e.g. doubled pawns, wrong file, impossible passed pawns).
 
-2. **State Beyond Turn Number Possibility** 
-   - Board state unreachable within the given number of turns
+2. **State Beyond Turn Number Possibility**
+   - Board state unreachable within the given number of turns (too many pieces moved for the count, or too few).
 
-3. **Piece Mobility Violations** 
-   - Piece configurations that contradict piece movement rules over time
+3. **Piece Mobility Violations**
+   - Piece configurations that contradict piece movement rules over time (wrong squares for knights/bishops, illegal last move, impossible castling or promotions).
 
 ### Alternative Approaches
 
