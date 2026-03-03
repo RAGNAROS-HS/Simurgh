@@ -140,3 +140,9 @@ graph TD
 - [ ] Create a web interface for position evaluation
 - [ ] Deploy as a hosted website for public access
 - [ ] Integrate legal move validation alongside possibility checks
+
+Feature Importance Visualization: Use SHAP or LIME to show which squares or pieces the Neural Network is looking at when it decides a position is unreachable.
+
+
+
+move number is normalized to 0-1, this is done by dividing the move number by an arbitrary maximum turn number (200), this exact figure should not matter that much, as we will cut off endgames based off of pieces left anyway.
