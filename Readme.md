@@ -41,6 +41,8 @@ The problem as a whole is PSPACE-complete. A learned approximator cuts out the l
 - [Problem Size Estimation](https://univ-avignon.hal.science/hal-03483904)
 - [Chess 960 Lichess Dataset](https://www.kaggle.com/datasets/alexmolas/chess-960-lichess) - All back row pieces randomized at start
 
+https://github.com/tromp/ChessPositionRanking interesting relevant repo with heuristic based legality checker
+
 ### Problem Complexity Estimates
 
 We know unreachable boards exist, but just how many are there? Thankfully others have calculated this, giving us a good picture of the scale.
@@ -146,3 +148,5 @@ Feature Importance Visualization: Use SHAP or LIME to show which squares or piec
 
 
 move number is normalized to 0-1, this is done by dividing the move number by an arbitrary maximum turn number (200), this exact figure should not matter that much, as we will cut off endgames based off of pieces left anyway.
+
+hggdsesrsees
