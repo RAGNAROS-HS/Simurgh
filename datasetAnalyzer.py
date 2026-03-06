@@ -5,6 +5,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
 PIECE_TO_CHANNEL = {
     (chess.PAWN,   chess.WHITE): 0,
@@ -40,28 +41,55 @@ def load_pgn(file_path):
     return games
 
 
-def pgn_to_bitboard(pgn_string: str, ply: int = 20, max_turns: int = 200) -> np.ndarray | None:
+def pgn_to_bitboard(pgn_string: str, max_turns: int = 200) -> np.ndarray | None:
     game = chess.pgn.read_game(io.StringIO(pgn_string))
 
     if game is None:
         return None
 
+    total_ply = game.end().ply()
+    max_ply = min(total_ply, max_turns)
+
+    if max_ply < 0:
+        return None
+
+    random_ply = random.randint(0, max_ply)
+
     board = game.board()
-    for move in game.mainline_moves():
-        board.push(move)
-        if board.ply() == ply:
-            planes = np.zeros((13, 8, 8), dtype=np.float32)
+    moves_list = list(game.mainline_moves())
 
-            for sq, piece in board.piece_map().items():
-                rank, file = divmod(sq, 8)
-                planes[PIECE_TO_CHANNEL[(piece.piece_type, piece.color)], rank, file] = 1.0
+    if random_ply == 0:
+        num_pieces = len(board.piece_map())
+        target_ply = 0
+    else:
+        for i, move in enumerate(moves_list):
+            board.push(move)
+            if board.ply() == random_ply:
+                num_pieces = len(board.piece_map())
+                if num_pieces <= 7:
+                    target_ply = max(0, random_ply - 20)
+                else:
+                    target_ply = random_ply
+                break
 
 
-            planes[12] = board.ply() / (2 * max_turns)
+    if target_ply < board.ply():
+        for _ in range(board.ply() - target_ply):
+            board.pop()
+    elif target_ply > board.ply():
+        # Should not happen, since target_ply <= random_ply <= max_ply
+        pass
 
-            return planes
 
-    return None
+    planes = np.zeros((13, 8, 8), dtype=np.float32)
+
+    for sq, piece in board.piece_map().items():
+        rank, file = divmod(sq, 8)
+        planes[PIECE_TO_CHANNEL[(piece.piece_type, piece.color)], rank, file] = 1.0
+
+    planes[12] = board.ply() / (2 * max_turns)
+
+    return planes
 
 
 if __name__ == "__main__":
@@ -80,7 +108,7 @@ if __name__ == "__main__":
     sns.histplot(data=df["num_moves"])
     plt.savefig("num_moves.png")
 
-    df2 = df["moves"].apply(lambda pgn: pgn_to_bitboard(pgn, ply=20)).to_frame(name="bitboard_ply20")
+    df2 = df["moves"].apply(lambda pgn: pgn_to_bitboard(pgn)).to_frame(name="bitboard_random")
     df2.to_csv("bitboards.csv", index=False)
 
 
