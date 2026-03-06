@@ -111,5 +111,13 @@ if __name__ == "__main__":
     df2 = df["moves"].apply(lambda pgn: pgn_to_bitboard(pgn)).to_frame(name="bitboard_random")
     df2.to_csv("bitboards.csv", index=False)
 
+    # Add piece count metric
+    df2["piece_count"] = df2["bitboard_random"].apply(lambda x: np.sum(x[0:12]) if x is not None else None)
+    print(f"Piece count stats:\n{df2['piece_count'].describe()}")
+
+    # Plot piece count distribution
+    sns.histplot(data=df2["piece_count"].dropna())
+    plt.savefig("piece_count.png")
+
 
 
