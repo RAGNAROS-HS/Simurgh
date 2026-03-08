@@ -119,21 +119,44 @@ A potential alternative is simulated chess variant games. These would naturally 
 
 ```mermaid
 graph TD
-    A["Raw Possible Dataset<br/>(100M boards)"] --> B["Clean Possible Dataset"]
-    B --> C["Analyze Dataset<br/>Distributions & Characteristics"]
+    A["Lichess PGN Database<br/>(Raw Source)"] --> B["Extract Metadata<br/>(games.csv)"]
+    B --> C["Sample Positions<br/>(Random Ply 0-200)"]
+    C --> D["Filter Minimum Pieces<br/>(>= 8 pieces)"]
+    D --> E["Encode Bitboards<br/>(13x8x8 planes)"]
     
-    D["Generate unreachable<br/>Dataset"] --> E["Clean unreachable Dataset"]
-    E --> C
+    E --> F["Generate Unreachable<br/>(Perturbation)"]
+    E --> G["Keep Reachable<br/>(Label: 1)"]
+    F --> H["Label: 0"]
     
-    C --> F["Split for<br/>Cross Validation"]
-    F --> G["Train Model"]
-    G --> H["Test Model"]
-    H --> I["Evaluate Results"]
+    G --> I["Combine & Balance<br/>(50/50 Split)"]
+    H --> I
     
+    I --> J["Stratified Split<br/>(80/10/10)"]
+    
+    J --> K["Train Dataset<br/>(.pkl)"]
+    J --> L["Val Dataset<br/>(.pkl)"]
+    J --> M["Test Dataset<br/>(.pkl)"]
+
     style A fill:#e1f5ff
-    style D fill:#fff3e0
-    style I fill:#e8f5e9
+    style F fill:#fff3e0
+    style K fill:#e8f5e9
+    style L fill:#e8f5e9
+    style M fill:#e8f5e9
 ```
+
+### Pipeline Details
+
+1.  **Source**: Large scale PGN databases from Lichess.
+2.  **Metadata Extraction**: Key attributes (Elo, Result, Moves) are extracted to `games.csv` for distribution analysis.
+3.  **Position Sampling**: For each game, a random ply is selected between 0 and 200. Positions with fewer than 8 pieces are rejected (or walked back) to ensure meaningful mid-game content.
+4.  **Bitboard Encoding**: Positions are converted into a `13x8x8` numpy array:
+    -   12 planes for piece types and colors (White/Black P, N, B, R, Q, K).
+    -   1 plane for normalized turn number (`ply / 400`).
+5.  **Labeling & Balancing**: 
+    -   Half the sampled positions are kept as **Reachable** (Label 1).
+    -   The other half are **Perturbed** to create **Unreachable** states (Label 0).
+6.  **Dataset Splits**: The combined data is split into **Training (80%)**, **Validation (10%)**, and **Testing (10%)** sets using a stratified approach to maintain the 50/50 reachability ratio across all splits.
+7.  **Storage**: Datasets are serialized using `pickle` to preserve numpy array structures in `datasets/`.
 
 ---
 
