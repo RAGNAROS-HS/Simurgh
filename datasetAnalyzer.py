@@ -104,9 +104,11 @@ if __name__ == "__main__":
     df["avg_elo"] = ((df["white_elo"] + df["black_elo"]) / 2).astype(int)
     sns.histplot(data=df["avg_elo"])
     plt.savefig("avg_elo.png")
+    plt.close()
 
     sns.histplot(data=df["num_moves"])
     plt.savefig("num_moves.png")
+    plt.close()
 
     df2 = df["moves"].apply(lambda pgn: pgn_to_bitboard(pgn)).to_frame(name="bitboard_random")
     df2.to_csv("bitboards.csv", index=False)
@@ -118,6 +120,7 @@ if __name__ == "__main__":
     # Plot piece count distribution
     sns.histplot(data=df2["piece_count"].dropna())
     plt.savefig("piece_count.png")
+    plt.close()
 
 
 
