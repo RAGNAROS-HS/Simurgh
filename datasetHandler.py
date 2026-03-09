@@ -152,8 +152,26 @@ if __name__ == "__main__":
     
     # Generate unreachable samples by perturbing the second half
     unreachable_df = df_unreachable_source[["bitboard", "avg_elo", "num_moves"]].copy()
+    
+    # Track plies for visualization
+    def get_ply(bitboard):
+        return bitboard[12, 0, 0] * (2 * 200) if bitboard is not None else None
+
+    unreachable_df["ply_before"] = unreachable_df["bitboard"].apply(get_ply)
     unreachable_df["bitboard"] = unreachable_df["bitboard"].apply(lambda x: generate_unreachable_bitboard(x, max_turns=200))
+    unreachable_df["ply_after"] = unreachable_df["bitboard"].apply(get_ply)
     unreachable_df["is_reachable"] = 0
+    
+    # Plot turn perturbation distribution
+    plt.figure(figsize=(10, 6))
+    sns.histplot(unreachable_df["ply_before"], color="blue", label="Original", kde=True, alpha=0.5)
+    sns.histplot(unreachable_df["ply_after"], color="red", label="Perturbed", kde=True, alpha=0.5)
+    plt.title("Turn Number Perturbation Distribution (Before vs After)")
+    plt.xlabel("Ply Count")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.savefig(os.path.join(PLOT_DIR, "ply_perturbation_comparison.png"))
+    plt.close()
     
     # Combine into a single balanced dataset
     combined_df = pd.concat([reachable_df, unreachable_df]).dropna(subset=["bitboard"])
