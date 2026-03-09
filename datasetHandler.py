@@ -79,12 +79,14 @@ def pgn_to_bitboard(pgn_string: str, max_turns: int = 200) -> np.ndarray | None:
     return planes
 
 
-def generate_unreachable_bitboard(bitboard: np.ndarray) -> np.ndarray | None:
+def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) -> np.ndarray | None:
     """
-    Placeholder for generating unreachable board states via perturbations.
+    Generates unreachable board states via perturbations.
+    Currently implements:
+    - Turn number perturbation (Inflation/Truncation)
+    
     Future implementations will include:
     - Pawn swaps/teleports
-    - Turn inflation/truncation
     - Piece mobility violations
     """
     if bitboard is None:
@@ -92,6 +94,20 @@ def generate_unreachable_bitboard(bitboard: np.ndarray) -> np.ndarray | None:
     
     unreachable_bitboard = bitboard.copy()
     
+    # Perturb turn number (Plane 12)
+    current_ply = unreachable_bitboard[12, 0, 0] * (2 * max_turns)
+    
+    perturbation_type = random.choice(["inflation", "truncation"])
+    
+    if perturbation_type == "inflation":
+        # Add 50 to 100 extra plies
+        inflated_ply = current_ply + random.randint(50, 100)
+        unreachable_bitboard[12] = inflated_ply / (2 * max_turns)
+    else:
+        # Set to a very low ply (e.g., 0 to 2) regardless of piece count
+        # (Assuming the original logic ensures at least 8 pieces)
+        truncated_ply = random.randint(0, 2)
+        unreachable_bitboard[12] = truncated_ply / (2 * max_turns)
 
     return unreachable_bitboard
 
@@ -136,7 +152,7 @@ if __name__ == "__main__":
     
     # Generate unreachable samples by perturbing the second half
     unreachable_df = df_unreachable_source[["bitboard", "avg_elo", "num_moves"]].copy()
-    unreachable_df["bitboard"] = unreachable_df["bitboard"].apply(lambda x: generate_unreachable_bitboard(x))
+    unreachable_df["bitboard"] = unreachable_df["bitboard"].apply(lambda x: generate_unreachable_bitboard(x, max_turns=200))
     unreachable_df["is_reachable"] = 0
     
     # Combine into a single balanced dataset
