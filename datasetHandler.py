@@ -79,7 +79,7 @@ def pgn_to_bitboard(pgn_string: str, max_turns: int = 200) -> np.ndarray | None:
     return planes
 
 
-def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> None:
+def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> str:
     """
     Perturbs the turn number (Plane 12) of a bitboard via inflation or truncation.
     """
@@ -97,26 +97,99 @@ def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> None:
         truncated_ply = random.randint(0, 2)
         bitboard[12] = truncated_ply / (2 * max_turns)
 
+    return f"turn_number_{perturbation_type}"
 
-def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) -> np.ndarray | None:
+
+def perturb_pawn_structure(bitboard: np.ndarray) -> str:
+    """
+    Perturbs the pawn structure to create an unreachable state regardless of turn number.
+    Implements:
+    - Rank violation (pawns on rank 1 or 8)
+    - Excess pawns (9 pawns of one color)
+    - Capture contradiction (stacking pawns on one file such that it requires more captures than missing opponent pieces)
+    """
+    color = random.choice(["white", "black"])
+    pawn_channel = 0 if color == "white" else 6
+    opponent_start = 6 if color == "white" else 0
+    opponent_end = 12 if color == "white" else 6
+    
+    pawn_coords = np.argwhere(bitboard[pawn_channel] == 1)
+    
+    # Calculate opponent's missing pieces
+    opponent_pieces = np.sum(bitboard[opponent_start:opponent_end])
+    missing_pieces = 16 - opponent_pieces
+    
+    p_types = ["rank_violation", "excess_pawns"]
+    if len(pawn_coords) - 1 > missing_pieces and len(pawn_coords) > 0:
+        p_types.append("capture_contradiction")
+        
+    p_type = random.choice(p_types)
+    
+    if p_type == "rank_violation" and len(pawn_coords) > 0:
+        idx = random.randint(0, len(pawn_coords) - 1)
+        r, c = pawn_coords[idx]
+        bitboard[pawn_channel, r, c] = 0
+        
+        target_rank = random.choice([0, 7])
+        for ch in range(12):
+            bitboard[ch, target_rank, c] = 0
+        bitboard[pawn_channel, target_rank, c] = 1
+        
+    elif p_type == "excess_pawns":
+        pawns_needed = 9 - len(pawn_coords)
+        if pawns_needed > 0:
+            empty_sqs = np.argwhere(np.sum(bitboard[:12], axis=0) == 0)
+            valid_empty = [sq for sq in empty_sqs if sq[0] not in [0, 7]]
+            
+            if len(valid_empty) >= pawns_needed:
+                valid_empty_list = [tuple(sq) for sq in valid_empty]
+                chosen = random.sample(valid_empty_list, pawns_needed)
+                for r, c in chosen:
+                    bitboard[pawn_channel, r, c] = 1
+            elif len(pawn_coords) > 0:
+                # Fallback to rank violation if no room
+                p_type = "excess_pawns_fallback_rank_violation"
+                r, c = pawn_coords[0]
+                bitboard[pawn_channel, r, c] = 0
+                for ch in range(12):
+                    bitboard[ch, 0, c] = 0
+                bitboard[pawn_channel, 0, c] = 1
+                
+    elif p_type == "capture_contradiction":
+        for r, c in pawn_coords:
+            bitboard[pawn_channel, r, c] = 0
+        
+        target_file = random.randint(0, 7)
+        ranks = random.sample([1, 2, 3, 4, 5, 6], len(pawn_coords))
+        for r in ranks:
+            # Clear target squares
+            for ch in range(12):
+                bitboard[ch, r, target_file] = 0
+            bitboard[pawn_channel, r, target_file] = 1
+
+    return f"pawn_structure_{p_type}"
+
+
+def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) -> tuple[np.ndarray | None, str | None]:
     """
     Generates unreachable board states via perturbations.
     Currently implements:
     - Turn number perturbation (Inflation/Truncation)
-    
-    Future implementations will include:
-    - Pawn swaps/teleports
-    - Piece mobility violations
+    - Pawn structural perturbations (Rank violations, Excess pieces, Capture contradictions)
     """
     if bitboard is None:
-        return None
+        return None, None
     
     unreachable_bitboard = bitboard.copy()
     
-    # Perturb turn number (Plane 12)
-    perturb_turn_number(unreachable_bitboard, max_turns)
+    if random.random() < 0.5:
+        # Perturb turn number (Plane 12)
+        perturb_type = perturb_turn_number(unreachable_bitboard, max_turns)
+    else:
+        # Perturb pawn structure
+        perturb_type = perturb_pawn_structure(unreachable_bitboard)
 
-    return unreachable_bitboard
+    return unreachable_bitboard, perturb_type
 
 if __name__ == "__main__":
     PLOT_DIR = "plots"
@@ -156,6 +229,7 @@ if __name__ == "__main__":
     # Create reachable samples
     reachable_df = df_reachable_source[["bitboard", "avg_elo", "num_moves"]].copy()
     reachable_df["is_reachable"] = 1
+    reachable_df["perturbation_type"] = "none"
     
     # Generate unreachable samples by perturbing the second half
     unreachable_df = df_unreachable_source[["bitboard", "avg_elo", "num_moves"]].copy()
@@ -165,7 +239,11 @@ if __name__ == "__main__":
         return bitboard[12, 0, 0] * (2 * 200) if bitboard is not None else None
 
     unreachable_df["ply_before"] = unreachable_df["bitboard"].apply(get_ply)
-    unreachable_df["bitboard"] = unreachable_df["bitboard"].apply(lambda x: generate_unreachable_bitboard(x, max_turns=200))
+    
+    unreachable_df_results = unreachable_df["bitboard"].apply(lambda x: generate_unreachable_bitboard(x, max_turns=200))
+    unreachable_df["bitboard"] = unreachable_df_results.apply(lambda x: x[0] if isinstance(x, tuple) else None)
+    unreachable_df["perturbation_type"] = unreachable_df_results.apply(lambda x: x[1] if isinstance(x, tuple) else None)
+    
     unreachable_df["ply_after"] = unreachable_df["bitboard"].apply(get_ply)
     unreachable_df["is_reachable"] = 0
     
