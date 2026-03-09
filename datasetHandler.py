@@ -79,6 +79,25 @@ def pgn_to_bitboard(pgn_string: str, max_turns: int = 200) -> np.ndarray | None:
     return planes
 
 
+def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> None:
+    """
+    Perturbs the turn number (Plane 12) of a bitboard via inflation or truncation.
+    """
+    current_ply = bitboard[12, 0, 0] * (2 * max_turns)
+    
+    perturbation_type = random.choice(["inflation", "truncation"])
+    
+    if perturbation_type == "inflation":
+        # Add 50 to 100 extra plies
+        inflated_ply = current_ply + random.randint(50, 100)
+        bitboard[12] = inflated_ply / (2 * max_turns)
+    else:
+        # Set to a very low ply (e.g., 0 to 2) regardless of piece count
+        # (Assuming the original logic ensures at least 8 pieces)
+        truncated_ply = random.randint(0, 2)
+        bitboard[12] = truncated_ply / (2 * max_turns)
+
+
 def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) -> np.ndarray | None:
     """
     Generates unreachable board states via perturbations.
@@ -95,19 +114,7 @@ def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) ->
     unreachable_bitboard = bitboard.copy()
     
     # Perturb turn number (Plane 12)
-    current_ply = unreachable_bitboard[12, 0, 0] * (2 * max_turns)
-    
-    perturbation_type = random.choice(["inflation", "truncation"])
-    
-    if perturbation_type == "inflation":
-        # Add 50 to 100 extra plies
-        inflated_ply = current_ply + random.randint(50, 100)
-        unreachable_bitboard[12] = inflated_ply / (2 * max_turns)
-    else:
-        # Set to a very low ply (e.g., 0 to 2) regardless of piece count
-        # (Assuming the original logic ensures at least 8 pieces)
-        truncated_ply = random.randint(0, 2)
-        unreachable_bitboard[12] = truncated_ply / (2 * max_turns)
+    perturb_turn_number(unreachable_bitboard, max_turns)
 
     return unreachable_bitboard
 
