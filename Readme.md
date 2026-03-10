@@ -87,14 +87,6 @@ Apply perturbations to **reachable** positions (e.g. from simulated or real game
 - **Promotion contradiction** — Add an extra queen (or piece) that implies promotion, but remove/block pawns so that many promotions are impossible; or wrong piece counts (e.g. two queens, one promotion possible).
 - **Castling / en passant** — Set castling rights or en passant when the board doesn’t allow it (e.g. king/rook moved, or no pawn just moved two).
 
-#### 4. Structural / cross-cutting
-
-- **Side swap** — Mirror the board or swap colours and keep the same turn number.
-- **FEN corruption** — Small edits to a valid FEN (castling, en passant, a digit) to get parseable but unreachable positions.
-
-*Implementation priority: start with pawn swap, turn truncation/inflation, knight square and bishop colour — then add double-pawn, king-in-check, and promotion contradictions for stronger signal.*
-
----
 
 ## Predicted Impossibility Types
 
