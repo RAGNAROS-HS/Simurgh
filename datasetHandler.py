@@ -170,24 +170,130 @@ def perturb_pawn_structure(bitboard: np.ndarray) -> str:
     return f"pawn_structure_{p_type}"
 
 
+def perturb_piece_mobility(bitboard: np.ndarray, max_turns: int = 200) -> str:
+    """
+    Perturbs piece mobility and placement to create an unreachable state.
+    Implements:
+    - Impossible promotion (extra higher pieces but 8 pawns still present)
+    - Bishops on same color (2 bishops on same color complex while having 8 pawns)
+    - Illegal check (the player who just moved is left in check)
+    """
+    p_types = ["impossible_promotion", "bishops_on_same_color", "illegal_check"]
+    p_type = random.choice(p_types)
+    
+    if p_type == "impossible_promotion":
+        color = random.choice(["white", "black"])
+        pawn_ch = 0 if color == "white" else 6
+        queen_ch = 4 if color == "white" else 10
+        
+        # Ensure 8 pawns
+        pawn_coords = np.argwhere(bitboard[pawn_ch] == 1)
+        pawns_needed = 8 - len(pawn_coords)
+        if pawns_needed > 0:
+            empty_sqs = np.argwhere(np.sum(bitboard[:12], axis=0) == 0)
+            valid_empty = [sq for sq in empty_sqs if sq[0] not in [0, 7]]
+            if len(valid_empty) >= pawns_needed:
+                valid_empty_list = [tuple(sq) for sq in valid_empty]
+                chosen = random.sample(valid_empty_list, pawns_needed)
+                for r, c in chosen:
+                    bitboard[pawn_ch, r, c] = 1
+                    
+        # Add an extra queen to force promotion contradiction
+        queens_coords = np.argwhere(bitboard[queen_ch] == 1)
+        empty_sqs = np.argwhere(np.sum(bitboard[:12], axis=0) == 0)
+        queens_to_add = max(1, 2 - len(queens_coords))
+        if len(empty_sqs) >= queens_to_add:
+            empty_sqs_list = [tuple(sq) for sq in empty_sqs]
+            chosen = random.sample(empty_sqs_list, queens_to_add)
+            for r, c in chosen:
+                bitboard[queen_ch, r, c] = 1
+
+        return "mobility_impossible_promotion"
+        
+    elif p_type == "bishops_on_same_color":
+        color = random.choice(["white", "black"])
+        pawn_ch = 0 if color == "white" else 6
+        bishop_ch = 2 if color == "white" else 8
+        
+        # Ensure 8 pawns to rule out underpromotion
+        pawn_coords = np.argwhere(bitboard[pawn_ch] == 1)
+        pawns_needed = 8 - len(pawn_coords)
+        if pawns_needed > 0:
+            empty_sqs = np.argwhere(np.sum(bitboard[:12], axis=0) == 0)
+            valid_empty = [sq for sq in empty_sqs if sq[0] not in [0, 7]]
+            if len(valid_empty) >= pawns_needed:
+                valid_empty_list = [tuple(sq) for sq in valid_empty]
+                chosen = random.sample(valid_empty_list, pawns_needed)
+                for r, c in chosen:
+                    bitboard[pawn_ch, r, c] = 1
+                    
+        # Put 2 bishops on same color
+        for r in range(8):
+            for c in range(8):
+                bitboard[bishop_ch, r, c] = 0 # Clear existing bishops
+        
+        empty_sqs = np.argwhere(np.sum(bitboard[:12], axis=0) == 0)
+        empty_sqs_list = [tuple(sq) for sq in empty_sqs]
+        light_sqs = [sq for sq in empty_sqs_list if (sq[0] + sq[1]) % 2 == 1]
+        dark_sqs = [sq for sq in empty_sqs_list if (sq[0] + sq[1]) % 2 == 0]
+        
+        chosen_color_sqs = light_sqs if random.random() < 0.5 else dark_sqs
+        if len(chosen_color_sqs) >= 2:
+            b1, b2 = random.sample(chosen_color_sqs, 2)
+            bitboard[bishop_ch, b1[0], b1[1]] = 1
+            bitboard[bishop_ch, b2[0], b2[1]] = 1
+            return "mobility_bishops_same_color"
+        else:
+            return "mobility_bishops_same_color_failed"
+            
+    elif p_type == "illegal_check":
+        ply = int(round(bitboard[12, 0, 0] * (2 * max_turns)))
+        just_moved_color = "black" if ply % 2 == 0 else "white"
+        jm_king_ch = 11 if just_moved_color == "black" else 5
+        opp_knight_ch = 1 if just_moved_color == "black" else 7
+        
+        king_pos = np.argwhere(bitboard[jm_king_ch] == 1)
+        if len(king_pos) > 0:
+            kr, kc = king_pos[0]
+            knight_moves = [
+                (kr+2, kc+1), (kr+2, kc-1), (kr-2, kc+1), (kr-2, kc-1),
+                (kr+1, kc+2), (kr+1, kc-2), (kr-1, kc+2), (kr-1, kc-2)
+            ]
+            valid_km = [(r, c) for r, c in knight_moves if 0 <= r < 8 and 0 <= c < 8]
+            if len(valid_km) > 0:
+                random.shuffle(valid_km)
+                for r, c in valid_km:
+                    # Do not overwrite a king
+                    if bitboard[5, r, c] == 0 and bitboard[11, r, c] == 0:
+                        for ch in range(12): bitboard[ch, r, c] = 0
+                        bitboard[opp_knight_ch, r, c] = 1
+                        return "mobility_illegal_check"
+        return "mobility_illegal_check_failed"
+
+    return "mobility_unknown"
+
+
 def generate_unreachable_bitboard(bitboard: np.ndarray, max_turns: int = 200) -> tuple[np.ndarray | None, str | None]:
     """
     Generates unreachable board states via perturbations.
     Currently implements:
     - Turn number perturbation (Inflation/Truncation)
     - Pawn structural perturbations (Rank violations, Excess pieces, Capture contradictions)
+    - Piece mobility perturbations (Promotion contradiction, Bishops on same color, Illegal check)
     """
     if bitboard is None:
         return None, None
     
     unreachable_bitboard = bitboard.copy()
     
-    if random.random() < 0.5:
-        # Perturb turn number (Plane 12)
+    perturb_category = random.choice(["turn", "pawn", "mobility"])
+    
+    if perturb_category == "turn":
         perturb_type = perturb_turn_number(unreachable_bitboard, max_turns)
-    else:
-        # Perturb pawn structure
+    elif perturb_category == "pawn":
         perturb_type = perturb_pawn_structure(unreachable_bitboard)
+    else:
+        perturb_type = perturb_piece_mobility(unreachable_bitboard, max_turns)
 
     return unreachable_bitboard, perturb_type
 
