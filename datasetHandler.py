@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import os
+import seaborn as sns
+
+sns.set_theme(style="whitegrid", palette="muted")
 
 PIECE_TO_CHANNEL = {
     (chess.PAWN,   chess.WHITE): 0,
@@ -313,11 +316,22 @@ if __name__ == "__main__":
     print(df[["white_elo", "black_elo"]].isna().sum())  #checking for null values
 
     df["avg_elo"] = ((df["white_elo"] + df["black_elo"]) / 2).astype(int)
-    sns.histplot(data=df["avg_elo"])
+
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=df["avg_elo"], kde=True)
+    plt.title("Distribution of Average ELO")
+    plt.xlabel("Average ELO")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "avg_elo_combined.png"))
     plt.close()
 
-    sns.histplot(data=df["num_moves"])
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=df["num_moves"], kde=True)
+    plt.title("Distribution of Number of Moves")
+    plt.xlabel("Number of Moves")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "num_moves_combined.png"))
     plt.close()
 
@@ -356,12 +370,13 @@ if __name__ == "__main__":
     
     # Plot turn perturbation distribution
     plt.figure(figsize=(10, 6))
-    sns.histplot(unreachable_df["ply_before"], color="blue", label="Original", kde=True, alpha=0.5)
-    sns.histplot(unreachable_df["ply_after"], color="red", label="Perturbed", kde=True, alpha=0.5)
+    sns.histplot(data=unreachable_df, x="ply_before", color="blue", label="Original", kde=True, alpha=0.5)
+    sns.histplot(data=unreachable_df, x="ply_after", color="red", label="Perturbed", kde=True, alpha=0.5)
     plt.title("Turn Number Perturbation Distribution (Before vs After)")
     plt.xlabel("Ply Count")
     plt.ylabel("Frequency")
     plt.legend()
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "ply_perturbation_comparison.png"))
     plt.close()
     # Plot ply distribution for turn number perturbations only
@@ -372,12 +387,13 @@ if __name__ == "__main__":
             continue
             
         plt.figure(figsize=(10, 6))
-        sns.histplot(subset["ply_before"], color="blue", label="Original", kde=True, alpha=0.5)
-        sns.histplot(subset["ply_after"], color="red", label="Perturbed", kde=True, alpha=0.5)
+        sns.histplot(data=subset, x="ply_before", color="blue", label="Original", kde=True, alpha=0.5)
+        sns.histplot(data=subset, x="ply_after", color="red", label="Perturbed", kde=True, alpha=0.5)
         plt.title(f"Ply Distribution Before vs After ({ptype})")
         plt.xlabel("Ply Count")
         plt.ylabel("Frequency")
         plt.legend()
+        plt.tight_layout()
         # Clean up ptype for filename just in case
         safe_ptype = str(ptype).replace(" ", "_").replace("/", "_").lower()
         plt.savefig(os.path.join(PLOT_DIR, f"ply_perturbation_comparison_{safe_ptype}.png"))
@@ -430,41 +446,69 @@ if __name__ == "__main__":
     print(f"\nPiece count stats (all samples):\n{combined_df['piece_count'].describe()}")
 
     # Plot piece count distribution
-    sns.histplot(data=combined_df, x="piece_count", hue="is_reachable", multiple="stack")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df, x="piece_count", hue="is_reachable", multiple="stack", palette="Set1")
     plt.title("Piece Count Distribution (Reachable vs Unreachable)")
+    plt.xlabel("Piece Count")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "piece_count_distribution.png"))
     plt.close()
 
     # Separate plots for reachable and unreachable
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="piece_count", color="green")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="piece_count", color="green", kde=True)
     plt.title("Piece Count Distribution (Reachable)")
+    plt.xlabel("Piece Count")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "piece_count_reachable.png"))
     plt.close()
 
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="piece_count", color="red")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="piece_count", color="red", kde=True)
     plt.title("Piece Count Distribution (Unreachable)")
+    plt.xlabel("Piece Count")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "piece_count_unreachable.png"))
     plt.close()
 
     # Separate plots for avg_elo
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="avg_elo", color="green")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="avg_elo", color="green", kde=True)
     plt.title("Average ELO Distribution (Reachable)")
+    plt.xlabel("Average ELO")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "avg_elo_reachable.png"))
     plt.close()
 
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="avg_elo", color="red")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="avg_elo", color="red", kde=True)
     plt.title("Average ELO Distribution (Unreachable)")
+    plt.xlabel("Average ELO")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "avg_elo_unreachable.png"))
     plt.close()
 
     # Separate plots for num_moves
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="num_moves", color="green")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 1], x="num_moves", color="green", kde=True)
     plt.title("Number of Moves Distribution (Reachable)")
+    plt.xlabel("Number of Moves")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "num_moves_reachable.png"))
     plt.close()
 
-    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="num_moves", color="red")
+    plt.figure(figsize=(10, 6))
+    sns.histplot(data=combined_df[combined_df["is_reachable"] == 0], x="num_moves", color="red", kde=True)
     plt.title("Number of Moves Distribution (Unreachable)")
+    plt.xlabel("Number of Moves")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
     plt.savefig(os.path.join(PLOT_DIR, "num_moves_unreachable.png"))
     plt.close()
 
