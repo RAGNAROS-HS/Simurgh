@@ -160,7 +160,8 @@ def perturb_pawn_structure(bitboard: np.ndarray) -> str:
             bitboard[pawn_channel, r, c] = 0
         
         target_file = random.randint(0, 7)
-        ranks = random.sample([1, 2, 3, 4, 5, 6], len(pawn_coords))
+        max_pawns_to_place = min(len(pawn_coords), 6) # Can't place more than 6 pawns on one file (ranks 1-6)
+        ranks = random.sample([1, 2, 3, 4, 5, 6], max_pawns_to_place)
         for r in ranks:
             # Clear target squares
             for ch in range(12):
@@ -362,6 +363,34 @@ if __name__ == "__main__":
     plt.ylabel("Frequency")
     plt.legend()
     plt.savefig(os.path.join(PLOT_DIR, "ply_perturbation_comparison.png"))
+    plt.close()
+    # Plot ply distribution for turn number perturbations only
+    for ptype in ["turn_number_inflation", "turn_number_truncation"]:
+        subset = unreachable_df[unreachable_df["perturbation_type"] == ptype]
+        # Only plot if there's data to avoid errors
+        if len(subset) == 0:
+            continue
+            
+        plt.figure(figsize=(10, 6))
+        sns.histplot(subset["ply_before"], color="blue", label="Original", kde=True, alpha=0.5)
+        sns.histplot(subset["ply_after"], color="red", label="Perturbed", kde=True, alpha=0.5)
+        plt.title(f"Ply Distribution Before vs After ({ptype})")
+        plt.xlabel("Ply Count")
+        plt.ylabel("Frequency")
+        plt.legend()
+        # Clean up ptype for filename just in case
+        safe_ptype = str(ptype).replace(" ", "_").replace("/", "_").lower()
+        plt.savefig(os.path.join(PLOT_DIR, f"ply_perturbation_comparison_{safe_ptype}.png"))
+        plt.close()
+
+    # Plot histogram of perturbation types
+    plt.figure(figsize=(12, 6))
+    sns.countplot(data=unreachable_df, y="perturbation_type", order=unreachable_df["perturbation_type"].value_counts().index, color="skyblue")
+    plt.title("Number of Instances per Perturbation Type")
+    plt.xlabel("Count")
+    plt.ylabel("Perturbation Type")
+    plt.tight_layout()
+    plt.savefig(os.path.join(PLOT_DIR, "perturbation_type_distribution.png"))
     plt.close()
     
     # Combine into a single balanced dataset
