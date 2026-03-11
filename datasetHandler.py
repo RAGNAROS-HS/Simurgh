@@ -95,9 +95,12 @@ def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> str:
         inflated_ply = current_ply + random.randint(50, 100)
         bitboard[12] = inflated_ply / (2 * max_turns)
     else:
-        # Set to a very low ply (e.g., 0 to 2) regardless of piece count
-        # (Assuming the original logic ensures at least 8 pieces)
-        truncated_ply = random.randint(0, 2)
+        # Truncate the ply count significantly (e.g., between 0 and half the current ply)
+        # This creates a more natural distribution and ensures it's always smaller than current_ply
+        if current_ply > 1:
+            truncated_ply = random.randint(0, int(current_ply) // 2)
+        else:
+            truncated_ply = 0
         bitboard[12] = truncated_ply / (2 * max_turns)
 
     return f"turn_number_{perturbation_type}"
