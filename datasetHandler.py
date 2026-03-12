@@ -29,7 +29,7 @@ PIECE_TO_CHANNEL = {
 def load_pgn(file_path):
     games = []
     with open(file_path, encoding="utf-8") as pgn_file:
-        for i in range(10000):
+        for i in range(100000):
             game = chess.pgn.read_game(pgn_file)
             if game is None:
                 break
