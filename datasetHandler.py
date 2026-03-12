@@ -29,7 +29,7 @@ PIECE_TO_CHANNEL = {
 def load_pgn(file_path):
     games = []
     with open(file_path, encoding="utf-8") as pgn_file:
-        for i in range(1000):
+        for i in range(10000):
             game = chess.pgn.read_game(pgn_file)
             if game is None:
                 break
@@ -95,8 +95,6 @@ def perturb_turn_number(bitboard: np.ndarray, max_turns: int = 200) -> str:
         inflated_ply = current_ply + random.randint(50, 100)
         bitboard[12] = inflated_ply / (2 * max_turns)
     else:
-        # Truncate the ply count significantly (e.g., between 0 and half the current ply)
-        # This creates a more natural distribution and ensures it's always smaller than current_ply
         if current_ply > 1:
             truncated_ply = random.randint(0, int(current_ply) // 2)
         else:
