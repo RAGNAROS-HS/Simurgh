@@ -116,24 +116,26 @@ graph TD
     C --> D["Filter Minimum Pieces<br/>(>= 8 pieces)"]
     D --> E["Encode Bitboards<br/>(13x8x8 planes)"]
     
-    E --> F["Generate Unreachable<br/>(Perturbation)"]
-    E --> G["Keep Reachable<br/>(Label: 1)"]
-    F --> H["Label: 0"]
+    E --> F["Split Data<br/>(50/50)"]
     
-    G --> I["Combine & Balance<br/>(50/50 Split)"]
-    H --> I
+    F -- "First Half" --> G["Keep Reachable<br/>(Label: 1)"]
+    F -- "Second Half" --> H["Generate Unreachable<br/>(Perturbations)"]
+    H --> I["Label: 0"]
     
-    I --> J["Stratified Split<br/>(80/10/10)"]
+    G --> J["Combine Dataset"]
+    I --> J
     
-    J --> K["Train Dataset<br/>(.pkl)"]
-    J --> L["Val Dataset<br/>(.pkl)"]
-    J --> M["Test Dataset<br/>(.pkl)"]
+    J --> K["Stratified Split<br/>(80/10/10)"]
+    
+    K --> L["Train Dataset<br/>(.pkl)"]
+    K --> M["Val Dataset<br/>(.pkl)"]
+    K --> N["Test Dataset<br/>(.pkl)"]
 
     style A fill:#e1f5ff
-    style F fill:#fff3e0
-    style K fill:#e8f5e9
+    style H fill:#fff3e0
     style L fill:#e8f5e9
     style M fill:#e8f5e9
+    style N fill:#e8f5e9
 ```
 
 ### Pipeline Details
@@ -145,8 +147,9 @@ graph TD
     -   12 planes for piece types and colors (White/Black P, N, B, R, Q, K).
     -   1 plane for normalized turn number (`ply / 400`).
 5.  **Labeling & Balancing**: 
-    -   Half the sampled positions are kept as **Reachable** (Label 1).
-    -   The other half are **Perturbed** to create **Unreachable** states (Label 0).
+    -   The dataset of reachable bitboards is split exactly in half (50/50).
+    -   The first half is kept identical as **Reachable** (Label 1).
+    -   The second half is selectively perturbed to create **Unreachable** states (Label 0), ensuring the foundational board characteristics (like average Elo or piece count origins) perfectly mirror the reachable dataset.
 6.  **Dataset Splits**: The combined data is split into **Training (80%)**, **Validation (10%)**, and **Testing (10%)** sets using a stratified approach to maintain the 50/50 reachability ratio across all splits.
 7.  **Storage**: Datasets are serialized using `pickle` to preserve numpy array structures in `datasets/`.
 
@@ -212,17 +215,17 @@ The model converges effectively over its training cycle, showing strong stabilit
 
 By breaking down the model's accuracy against specific categories of generated unreachable states during testing, we can gain deep insights into what types of board impossibilities the neural network excels at spotting, and which ones it struggles with.
 
-| Category | Perturbation Type | Count | Accuracy |
-| :--- | :--- | :---: | :---: |
-| **Baseline** | None *(Reachable)* | 4987 | **98.24%** |
-| **Pawn Structure** | Capture Contradiction | 327 | **99.69%** |
-| | Rank Violation | 643 | **99.38%** |
-| | Excess Pawns | 621 | **98.55%** |
-| **Turn Number** | Turn Inflation | 858 | **99.77%** |
-| | Turn Truncation | 854 | **96.84%** |
-| **Mobility** | Impossible Promotion | 586 | **95.22%** |
-| | Bishops Same Color | 559 | **93.20%** |
-| | Illegal Check | 540 | **87.04%** |
+| Category           | Perturbation Type     | Count |  Accuracy  |
+| :----------------- | :-------------------- | :---: | :--------: |
+| **Baseline**       | None *(Reachable)*    | 4987  | **98.24%** |
+| **Pawn Structure** | Capture Contradiction |  327  | **99.69%** |
+|                    | Rank Violation        |  643  | **99.38%** |
+|                    | Excess Pawns          |  621  | **98.55%** |
+| **Turn Number**    | Turn Inflation        |  858  | **99.77%** |
+|                    | Turn Truncation       |  854  | **96.84%** |
+| **Mobility**       | Impossible Promotion  |  586  | **95.22%** |
+|                    | Bishops Same Color    |  559  | **93.20%** |
+|                    | Illegal Check         |  540  | **87.04%** |
 
 #### Key Insights
 
@@ -303,4 +306,3 @@ Feature Importance Visualization: Use SHAP or LIME to show which squares or piec
 
 move number is normalized to 0-1, this is done by dividing the move number by an arbitrary maximum turn number (200), this exact figure should not matter that much, as we will cut off endgames based off of pieces left anyway.
 
-hggdsesrsees
