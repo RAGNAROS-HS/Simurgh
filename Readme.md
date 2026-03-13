@@ -339,10 +339,12 @@ To visualize the model's holistic performance, the confusion matrix and overall 
 ---
 
 
-This just about concludes the project, 
+This just about concludes the project, many precise details and decisions were not included in this description, doing that would balloon the document to thesis-size. For now this is not on my radar, but maybe eventually I'll get around to formatting it in latex and providing a fully fledged description.
 
-## Additional Goals
+Whatever the case - I think I've taken an interesting step into tackling a niche problem using an industry standard - but previously unatempted (in this realm) solution. All with solid results, and room for future improvement.
 
+## Potential Future Goals
+- [ ] Turn into Latex doc
 - [ ] Create a web interface for position evaluation
 - [ ] Deploy as a hosted website for public access
 
