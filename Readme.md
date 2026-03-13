@@ -41,12 +41,9 @@ The problem as a whole is PSPACE-complete. A learned approximator cuts out the l
 - [Texel Proof Game Documentation](https://github.com/peterosterlund2/texel/blob/master/doc/proofgame.md)
 - [Chess Neural Networks Research](https://theses.liacs.nl/pdf/2022-2023-AlwerSaleh.pdf)
 - [Problem Size Estimation](https://univ-avignon.hal.science/hal-03483904)
-<<<<<<< Updated upstream
-
-=======
 - [Chess 960 Lichess Dataset](https://www.kaggle.com/datasets/alexmolas/chess-960-lichess) - All back row pieces randomized at start
 - [ChessPositionRanking](https://github.com/tromp/ChessPositionRanking) - Interesting relevant repo with heuristic-based legality checker
->>>>>>> Stashed changes
+
 
 **Background Papers (see `backgroundKnowledge/`):**
 - [Alwer Saleh Thesis (2022-2023)](backgroundKnowledge/2022-2023-AlwerSaleh.pdf)
