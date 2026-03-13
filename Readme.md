@@ -6,7 +6,7 @@ I know what you are thinking — "oh no, not another chess project." But hear me
 
 While lots of work is dedicated to evaluating positions or legal moves, **I have yet to see a project evaluating possibilities**. 
 
-Chess grandmasters can look at a board and determine whether such a game could exist. Their experience and pattern recognition allow them to assess whether a board state is **possible**. The distinction between **legal** and **possible** is crucial here.
+Chess grandmasters can look at a board and (to some extent) determine whether such a game could exist. Their experience and pattern recognition allow them to assess whether a board state is **possible**. The distinction between **legal** and **possible** is crucial here.
 
 > **Key Insight:** A state can be legal but unreachable. For example, a specific pawn structure might follow all the rules of chess, but given the turn number, there's no possible sequence of moves that could produce this arrangement.
 
@@ -39,7 +39,7 @@ The problem as a whole is PSPACE-complete. A learned approximator cuts out the l
 - [Texel Proof Game Documentation](https://github.com/peterosterlund2/texel/blob/master/doc/proofgame.md)
 - [Chess Neural Networks Research](https://theses.liacs.nl/pdf/2022-2023-AlwerSaleh.pdf)
 - [Problem Size Estimation](https://univ-avignon.hal.science/hal-03483904)
-- [Chess 960 Lichess Dataset](https://www.kaggle.com/datasets/alexmolas/chess-960-lichess) - All back row pieces randomized at start
+
 
 https://github.com/tromp/ChessPositionRanking interesting relevant repo with heuristic based legality checker
 
@@ -56,10 +56,12 @@ Meaning there are roughly 100 000 times more possible boards than reachable boar
 
 ## Dataset
 
-| Type                   | Source                   | Status |
-| ---------------------- | ------------------------ | ------ |
-| **Possible states**    | download lichess dataset |
+| Type                   | Source                   |
+| ---------------------- | ------------------------ | 
+| **Possible states**    | lichess dataset          |
 | **Unreachable states** | synthetically generated  |
+
+Lichess has an enormous amount of data, more than I could ever hope to process, for this project I have taken one single month of the lichess dataset, and processes 100k games. The reasoning for this number will be clear later.
 
 ### Unreachable States Generation
 
@@ -80,32 +82,18 @@ Apply perturbations to **reachable** positions (e.g. from simulated or real game
 
 #### 3. Piece mobility / placement
 
-- **Piece swap (same type)** — Swap two identical pieces (e.g. two knights) so at least one couldn’t have reached its square.
-- **Knight jump** — Move a knight to a non-knight square (same colour as origin).
+- **Knight jump** — Move a knight to a non-knight square.
 - **Bishop colour** — Put a bishop on the wrong colour complex.
 - **King in check (illegal last move)** — Add or move a piece so the side not to move has their king in check.
-- **Promotion contradiction** — Add an extra queen (or piece) that implies promotion, but remove/block pawns so that many promotions are impossible; or wrong piece counts (e.g. two queens, one promotion possible).
-- **Castling / en passant** — Set castling rights or en passant when the board doesn’t allow it (e.g. king/rook moved, or no pawn just moved two).
 
 
-## Predicted Impossibility Types
-
-The system should detect the following types of unreachable board states:
-
-1. **Pawn Structure Violation**
-   - Unreachable pawn configurations given the move history (e.g. doubled pawns, wrong file, impossible passed pawns).
-
-2. **State Beyond Turn Number Possibility**
-   - Board state unreachable within the given number of turns (too many pieces moved for the count, or too few).
-
-3. **Piece Mobility Violations**
-   - Piece configurations that contradict piece movement rules over time (wrong squares for knights/bishops, illegal last move, impossible castling or promotions).
 
 ### Alternative Approaches
 
-A potential alternative is simulated chess variant games. These would naturally tend towards unreachable states, however these is no guarantee that for example a crazyhouse chess game state would not be reachable via normal chess play. So this approach is falling to the way side in terms of priority.
+A potential alternative is simulated chess variant games, for example chess 960 which randomizes the back row. These would naturally tend towards states unreachable in regular chess, however these is no guarantee that for example a crazyhouse chess game state would not be reachable via normal chess play. So this approach is falling to the way side in terms of priority.
 
 
+Knowing our dataset and approach we can sketch out our data flow
 
 ## Data Pipeline
 
@@ -140,6 +128,10 @@ graph TD
 
 ### Pipeline Details
 
+Since I want to train a Neural Network, and lichess downloads in PGN format, I need to make some transformations for the board states to be visible. First of all there is a lot of metadata we do not need, so we strip those, then as PGN is simply a list of moves, we need to pick a turn number and progress towards it. Usually this would result in a FEN file-type, but this is suboptimal for NN training. After skimming some papers it seems like a bitmap is the best representation, some systems like AlphaZero use a 6 channel bitmap - essentially being colorblind and assuming the board is always rotated to the player, but I want my NN to distinguisg between colors, as I'd imagine that gives better depth of understanding and recognition. Also at this stage it needs to be decided how to split the dataset, to the best of my understanding a 50/50 split is ideal, so this is what I aim for, also the pertubed half is further evenly split between the various types. All of this as a whole is divided into 80 10 10 for train test val, as our data quantity is not an issue we do not need cross validation or folds.
+
+So to summarize:
+
 1.  **Source**: Large scale PGN databases from Lichess.
 2.  **Metadata Extraction**: Key attributes (Elo, Result, Moves) are extracted to `games.csv` for distribution analysis.
 3.  **Position Sampling**: For each game, a random ply is selected between 0 and 200. Positions with fewer than 8 pieces are rejected (or walked back) to ensure meaningful mid-game content.
@@ -155,7 +147,7 @@ graph TD
 
 ### Dataset Distributions
 
-To understand the characteristics of our training data, we can view its distributions regarding piece count, game length, and player skill.
+To understand and double check the characteristics of our training data, we can view its distributions regarding piece count, game length, and player skill.
 
 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
   <img src="plots/piece_count_distribution.png" alt="Piece Count Distribution" width="32%">
@@ -200,20 +192,22 @@ The synthetic unreachable data is generated by randomly selecting from our list 
 
 ## Results & Evaluation
 
-The Simurgh classification model demonstrates exceptional capability in distinguishing between reachable and unreachable board states, achieving an overall **ROC AUC Score of 0.9959**.
+Simurgh successfully trained (albeit not for the full 30 epochs) and achieving an overall **ROC AUC Score of 0.9959**. This result is at a glance extremely promising, so lets take a look to verify.
 
 ### Training Performance
 
-The model converges effectively over its training cycle, showing strong stability and minimizing loss.
+
 
 <div style="display: flex; gap: 10px;">
   <img src="plots/training_accuracy.png" alt="Training Accuracy" width="48%">
   <img src="plots/training_loss.png" alt="Training Loss" width="48%">
 </div>
 
+Our training metrics look rock solid, however our validation scores are sawtooth shaped, implying the learning rate was too high or the set was too small. There might be some performance left on the table due to this, so definitely a worthy lesson for next time
+
 ### Per-Perturbation Analysis
 
-By breaking down the model's accuracy against specific categories of generated unreachable states during testing, we can gain deep insights into what types of board impossibilities the neural network excels at spotting, and which ones it struggles with.
+Below is a breakdown of the accuracy for each specific problem type.
 
 | Category           | Perturbation Type     | Count |  Accuracy  |
 | :----------------- | :-------------------- | :---: | :--------: |
@@ -232,6 +226,8 @@ By breaking down the model's accuracy against specific categories of generated u
 1. **Pawn Structure Violations are Obvious:** The network is almost flawless (>98.5%) at noticing impossible pawn configurations, such as pawns sitting on the 1st or 8th rank, contradictory captures needed to reach the file arrangement, or excess pawns. The spatial nature of convolutional networks handles this exceptionally well. 
 2. **Turn Flow Awareness:** The network has successfully learned to correlate the number of pieces missing and typical piece development with the given turn number dimension. Identifying *Turn Inflation* (an overly high turn number given the crowded board) is near-perfect (99.77%). *Turn Truncation* (too few turns for the amount of development/captures) is also highly accurate (96.84%).
 3. **Complex Mobility is The Hardest:** Detecting structural impossibilities that require deep backward-logical deduction—such as realizing an *Illegal Check* sequence (87.04%) or spotting *Bishops on the Same Color* (93.20%)—is the model's weakest point. While accuracy is still impressively high, this highlights the difference between learning localized structural rules versus long-term procedural legality.
+
+There are some things to note here - one could potentially tweak the severity of these peturbations, for example lowering the amount of turns that we truncate or inflate. The reason behind the high values in this project is to ensure impossibility, if one were to delve into less and less obvious peturbations, a source of truth via a retrograde analysis would be necessary.
 
 #### Prediction Confidence Distributions
 
@@ -289,20 +285,15 @@ To visualize the model's holistic performance, the confusion matrix and overall 
 
 <div style="display: flex; gap: 10px;">
   <img src="plots/confusion_matrix.png" alt="Confusion Matrix" width="48%">
-  <img src="plots/classification_report.png" alt="Classification Report" width="48%">
 </div>
 
 ---
+
+
+This just about concludes the project, 
 
 ## Additional Goals
 
 - [ ] Create a web interface for position evaluation
 - [ ] Deploy as a hosted website for public access
-- [ ] Integrate legal move validation alongside possibility checks
-
-Feature Importance Visualization: Use SHAP or LIME to show which squares or pieces the Neural Network is looking at when it decides a position is unreachable.
-
-
-
-move number is normalized to 0-1, this is done by dividing the move number by an arbitrary maximum turn number (200), this exact figure should not matter that much, as we will cut off endgames based off of pieces left anyway.
 
